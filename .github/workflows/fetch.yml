@@ -13,21 +13,28 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: data/scripts   # <--- set working dir
+        working-directory: data/scripts   # your script folder
     steps:
+      # 1️⃣ Checkout repository
       - uses: actions/checkout@v4
 
+      # 2️⃣ Setup Node.js
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
+      # 3️⃣ Install dependencies
       - run: npm install
-      - run: node fetch_news.mjs          # run your script directly
 
-      - name: Commit and push data
+      # 4️⃣ Run fetch_news.mjs to generate index.html and news.json
+      - run: node fetch_news.mjs
+
+      # 5️⃣ Commit and push generated files
+      - name: Commit and push generated files
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ../news.json
-          git commit -m "chore: update news.json" || echo "No changes"
+          # Adjust paths relative to working-directory
+          git add ../../index.html ../news.json
+          git commit -m "chore: update generated news" || echo "No changes to commit"
           git push
