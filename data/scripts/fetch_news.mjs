@@ -6,16 +6,19 @@ import { XMLParser } from 'fast-xml-parser';
 // --- Config ---
 const FEEDS = [
   'https://www.coindesk.com/arc/outboundfeeds/rss/',
-  'https://bitcoinmagazine.com/.rss/full/'
+  'https://bitcoinmagazine.com/.rss/full/',
+  'https://cointelegraph.com/rss' // Cointelegraph RSS
 ];
 
 const BITCOIN_ONLY_HOSTS = new Set([
   'coindesk.com',
-  'bitcoinmagazine.com'
+  'bitcoinmagazine.com',
+  'cointelegraph.com'
 ]);
 
 const outPath = path.resolve('../../index.html'); // repo root
 const parser = new XMLParser();
+const MAX_ITEMS = 90; // total items to display
 
 // --- Helpers ---
 function isBitcoinStory(item) {
@@ -42,6 +45,26 @@ async function fetchFeed(url) {
   const parsed = parser.parse(xml);
   const items = parsed?.rss?.channel?.item || parsed?.feed?.entry || [];
   return items.map(i => toItem(i, url)).filter(i => i.url && i.title);
+}
+
+// --- NewsAPI ---
+async function fetchNewsApi() {
+  const apiKey = process.env.NEWSAPI_KEY;
+  if (!apiKey) return [];
+  const url = `https://newsapi.org/v2/everything?q=bitcoin&language=en&sortBy=publishedAt&pageSize=50&apiKey=${apiKey}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.articles) return [];
+    return data.articles.map(a => ({
+      title: a.title,
+      url: a.url,
+      published_at: a.publishedAt
+    }));
+  } catch (e) {
+    console.error('NewsAPI fetch failed', e);
+    return [];
+  }
 }
 
 // --- Render helpers ---
@@ -74,6 +97,7 @@ function renderColumn(items) {
 (async () => {
   const all = [];
 
+  // 1️⃣ Fetch RSS feeds
   for (const feed of FEEDS) {
     try {
       const items = await fetchFeed(feed);
@@ -83,27 +107,31 @@ function renderColumn(items) {
     }
   }
 
-  // Filter Bitcoin stories
+  // 2️⃣ Fetch NewsAPI
+  const newsApiItems = await fetchNewsApi();
+  all.push(...newsApiItems);
+
+  // 3️⃣ Filter Bitcoin stories
   const filtered = all.filter(isBitcoinStory);
 
-  // Deduplicate by URL
+  // 4️⃣ Deduplicate by URL
   const byUrl = new Map();
   filtered.forEach(it => {
     if (!byUrl.has(it.url)) byUrl.set(it.url, it);
   });
   const deduped = Array.from(byUrl.values());
 
-  // Sort newest → oldest
+  // 5️⃣ Sort newest → oldest
   deduped.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
 
-  // Cap at 90 items
-  const items = deduped.slice(0, 90);
+  // 6️⃣ Cap items
+  const items = deduped.slice(0, MAX_ITEMS);
 
-  // Split into 3 columns
+  // 7️⃣ Split into 3 columns
   const cols = [[], [], []];
   items.forEach((it, i) => cols[i % 3].push(it));
 
-  // Generate HTML keeping your original format
+  // 8️⃣ Generate index.html
   const html = `<!doctype html>
 <html lang="en">
 <head>
