@@ -7,7 +7,7 @@ import { XMLParser } from 'fast-xml-parser';
 const FEEDS = [
   'https://www.coindesk.com/arc/outboundfeeds/rss/',
   'https://bitcoinmagazine.com/.rss/full/',
-  'https://cointelegraph.com/rss' // Cointelegraph RSS
+  'https://cointelegraph.com/rss'
 ];
 
 const BITCOIN_ONLY_HOSTS = new Set([
@@ -16,9 +16,9 @@ const BITCOIN_ONLY_HOSTS = new Set([
   'cointelegraph.com'
 ]);
 
-const outPath = path.resolve('../../index.html'); // repo root
 const parser = new XMLParser();
-const MAX_ITEMS = 90; // total items to display
+const MAX_ITEMS_PER_PAGE = 30; // optional cap per page
+const PAGE_LIMIT_DAYS = 7; // show only items <= 7 days
 
 // --- Helpers ---
 function isBitcoinStory(item) {
@@ -47,7 +47,7 @@ async function fetchFeed(url) {
   return items.map(i => toItem(i, url)).filter(i => i.url && i.title);
 }
 
-// --- NewsAPI ---
+// NewsAPI
 async function fetchNewsApi() {
   const apiKey = process.env.NEWSAPI_KEY;
   if (!apiKey) return [];
@@ -67,7 +67,7 @@ async function fetchNewsApi() {
   }
 }
 
-// --- Render helpers ---
+// Render helpers
 function timeAgo(date) {
   const s = Math.floor((Date.now() - date.getTime()) / 1000);
   const r = (n, w) => `${n} ${w}${n !== 1 ? 's' : ''} ago`;
@@ -91,6 +91,51 @@ function renderColumn(items) {
       <span class="meta">${host}${when ? ' • ' + when : ''}</span>
     </a>`;
   }).join('');
+}
+
+function generateHTML(items, pageTitle) {
+  // split into 3 columns
+  const cols = [[], [], []];
+  items.forEach((it, i) => cols[i % 3].push(it));
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${pageTitle}</title>
+<meta name="description" content="Bitcoin headlines, updated automatically." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header>
+<h1><a href="/">BITCOIN WIRE</a></h1>
+<p id="updated">Updated ${new Date().toLocaleString()}</p>
+</header>
+
+<main id="app" class="grid">
+<section class="col" id="left">
+${renderColumn(cols[0])}
+</section>
+<section class="col" id="center">
+${renderColumn(cols[1])}
+</section>
+<section class="col" id="right">
+${renderColumn(cols[2])}
+</section>
+</main>
+
+<footer>
+<small>
+Pure links. No tracking. Source on <a href="https://github.com/fiatdenier/BitcoinReport/" target="_blank" rel="noopener">GitHub</a>.
+</small>
+</footer>
+
+</body>
+</html>`;
 }
 
 // --- Main ---
@@ -124,54 +169,25 @@ function renderColumn(items) {
   // 5️⃣ Sort newest → oldest
   deduped.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
 
-  // 6️⃣ Cap items
-  const items = deduped.slice(0, MAX_ITEMS);
+  // 6️⃣ Split into pages by age
+  const now = Date.now();
+  const pages = [];
 
-  // 7️⃣ Split into 3 columns
-  const cols = [[], [], []];
-  items.forEach((it, i) => cols[i % 3].push(it));
+  for (let day = 1; day <= PAGE_LIMIT_DAYS; day++) {
+    const startMs = (day - 1) * 24 * 60 * 60 * 1000;
+    const endMs = day * 24 * 60 * 60 * 1000;
+    const pageItems = deduped.filter(it => {
+      const t = new Date(it.published_at).getTime();
+      return now - t >= startMs && now - t < endMs;
+    }).slice(0, MAX_ITEMS_PER_PAGE);
+    if (pageItems.length > 0) pages.push(pageItems);
+  }
 
-  // 8️⃣ Generate index.html
-  const html = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Bitcoin Wire</title>
-<meta name="description" content="Bitcoin headlines, updated automatically." />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-<header>
-<h1><a href="/">BITCOIN WIRE</a></h1>
-<p id="updated">Updated ${new Date().toLocaleString()}</p>
-</header>
-
-<main id="app" class="grid">
-<section class="col" id="left">
-${renderColumn(cols[0])}
-</section>
-<section class="col" id="center">
-${renderColumn(cols[1])}
-</section>
-<section class="col" id="right">
-${renderColumn(cols[2])}
-</section>
-</main>
-
-<footer>
-<small>
-Pure links. No tracking. Source on <a href="https://github.com/fiatdenier/BitcoinReport/" target="_blank" rel="noopener">GitHub</a>.
-</small>
-</footer>
-
-</body>
-</html>
-`;
-
-  fs.writeFileSync(outPath, html);
-  console.log(`Wrote ${items.length} news items to ${outPath}`);
+  // 7️⃣ Generate HTML files
+  pages.forEach((pageItems, idx) => {
+    const fileName = idx === 0 ? 'index.html' : `page${idx + 1}.html`;
+    const title = idx === 0 ? 'Bitcoin Wire - Last 24 Hours' : `Bitcoin Wire - Day ${idx + 1}`;
+    fs.writeFileSync(path.resolve('../../', fileName), generateHTML(pageItems, title));
+    console.log(`Wrote ${pageItems.length} items to ${fileName}`);
+  });
 })();
