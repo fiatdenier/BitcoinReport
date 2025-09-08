@@ -66,8 +66,10 @@ main.grid .col {
 
 /* Add Bitcoin-orange border between columns */
 main.grid .col:not(:first-child) {
-  border-left: 2px solid var(--bitcoin-orange);
+  border-left: 1px solid rgba(247, 147, 26, 0.3); /* 30% opacity Bitcoin orange */
+  padding-left: 1rem;
 }
+
 
 /* ---------- Article Links ---------- */
 #app a {
