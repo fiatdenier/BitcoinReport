@@ -1,0 +1,122 @@
+/* ==============================
+   Bitcoin Wire – Stylesheet
+   ============================== */
+
+:root {
+  --bitcoin-orange: #f7931a;
+  --bg-color: #ffffff;
+  --text-color: #222222;
+  --link-color: var(--bitcoin-orange);
+  --link-hover: #e07b12;
+  --meta-color: #555555;
+}
+
+/* ---------- Global ---------- */
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+a {
+  color: var(--link-color);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+
+/* ---------- Header ---------- */
+header {
+  text-align: center;
+  padding: 1rem;
+  border-bottom: 2px solid #eee;
+}
+
+header h1 a {
+  color: var(--bitcoin-orange);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+header p#updated {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--meta-color);
+}
+
+/* ---------- Main / Grid ---------- */
+main.grid {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+main.grid .col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Optional column separation */
+main.grid .col:not(:first-child) {
+  border-left: 1px solid #eee;
+  padding-left: 1rem;
+}
+
+/* ---------- Article Links ---------- */
+#app a {
+  display: block;
+  padding: 0.25rem 0;
+  font-size: 0.95rem;
+}
+
+#app a.big {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--bitcoin-orange);
+}
+
+#app a:hover {
+  color: var(--link-hover);
+}
+
+/* Meta information */
+.meta {
+  font-size: 0.8rem;
+  color: var(--meta-color);
+  display: block;
+}
+
+/* ---------- Footer ---------- */
+footer {
+  text-align: center;
+  padding: 1rem;
+  border-top: 2px solid #eee;
+  font-size: 0.8rem;
+  color: var(--meta-color);
+}
+
+footer a {
+  color: var(--bitcoin-orange);
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  main.grid {
+    flex-direction: column;
+  }
+  main.grid .col {
+    border-left: none;
+    padding-left: 0;
+  }
+}
