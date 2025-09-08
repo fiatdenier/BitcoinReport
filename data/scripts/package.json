@@ -1,0 +1,12 @@
+{
+"name": "BitcoinReport",
+"private": true,
+"type": "module",
+"scripts": {
+"fetch": "node scripts/fetch_news.mjs"
+},
+"dependencies": {
+"fast-xml-parser": "^4.4.1",
+"node-fetch": "^3.3.2"
+}
+}
